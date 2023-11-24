@@ -1,6 +1,6 @@
 import sys
 import socket
-from utils import parse_packet, check_routes, create_packet, get_address, Packet, fragment_IP_packet, reassemble_IP_packet, is_complete
+from utils import parse_packet, check_routes, create_packet, get_address, Packet, fragment_IP_packet, reassemble_IP_packet, is_complete, get_table, create_BGP_message
 import pprint
 pprint = pprint.PrettyPrinter()
 if len(sys.argv) != 4:
@@ -24,8 +24,14 @@ router_sock.bind(ADDRESS)
 
 cache_msgs = {}
 
+
 if __name__ == "__main__":
     print(f"Starting router! {ip}@{port}")
+    print("Starting Table")
+    table = get_table(TABLE_FILE)
+    pprint.pprint(get_table(TABLE_FILE))
+    print(create_BGP_message(port, table))
+    exit(0)
     while True:
         msg, addr = router_sock.recvfrom(1024)
         # para quitar el \n
@@ -42,7 +48,7 @@ if __name__ == "__main__":
             
             cache_msgs[recv_packet.iden] += [msg]
             bytes_or_none = reassemble_IP_packet(cache_msgs[recv_packet.iden])
-            pprint.pprint(cache_msgs)
+            #pprint.pprint(cache_msgs)
             if bytes_or_none != None:
                 parsed = parse_packet(bytes_or_none)
                 if is_complete(parsed):

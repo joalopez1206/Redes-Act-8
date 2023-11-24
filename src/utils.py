@@ -14,6 +14,14 @@ class Packet:
     flag: int
     msg: bytes
 
+@dataclass
+class Entry:
+    ip_net: str
+    caminos: list[int]
+    ip_llegada: str
+    puerto_llegada: int
+    mtu: int
+
 #Lo que guarda el cache es
 # key: la
 cache = dict()
@@ -130,6 +138,27 @@ def reassemble_IP_packet(fragment_list: list[bytes]) -> bytes:
     size = len(msg)
     fragment = fragment_parsed_list[0]
     last_fragment = fragment_parsed_list[-1]
-    return create_packet(Packet(fragment.ip, fragment.port, 
+    return Packet(fragment.ip, fragment.port, 
                                 fragment.ttl, fragment.iden, fragment.offset,
-                                size, last_fragment.flag, msg))
+                                size, last_fragment.flag, msg)
+
+
+def create_BGP_message(asn: int, lista: list[Entry]):
+    prelude = f"BGP_ROUTES\n{asn}\n"
+    middle = "\n".join([" ".join([str(x) for x in entry.caminos]) for entry in lista])
+    epilogue = "\nEND_BGP_ROUTES"
+    return prelude + middle + epilogue
+
+def get_table(table_file: str):
+    table = []
+    with open(table_file, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            ip, *camino, ip_llegada, puerto_llegada, mtu =line.split(" ")
+            camino = [int(c) for c in camino]
+            puerto_llegada = int(puerto_llegada)
+            mtu = int(mtu)
+            camino.reverse()
+            table.append(Entry(ip,camino,ip_llegada, puerto_llegada, mtu))
+        return table
+            

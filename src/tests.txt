@@ -1,0 +1,2 @@
+127.0.0.1;8885;030;00000348;00000000;00000071;0;esto es un mensaje loco, la idea es que sea un mensaje que se pueda ver
+127.0.0.1;8885;030;00000349;00000000;00000005;0;hola!
