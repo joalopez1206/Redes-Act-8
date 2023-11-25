@@ -1,8 +1,21 @@
 # BGP
 ## Codigo y desiciones
 
+En la carpeta [src](./src) esta todo el codigo, el cual se divide en
+- [router.py](./src/router.py) -> para crear routers
+- [utils.py](./src/utils.py) -> el cual tiene la funciones para los packets
+Los ejemplos usados estan en la carpeta [ejemplo/ejemplo2](./src/ejemplo/ejemplo2/) 
+
+### Desiciones de diseño (La mayoria esta en utils.py)
+
+Lo que se decidio hacer, fue crear una clase `Entry`, la cual permite almacenar las entradas de la tabla de rutas(y no tener que trabajar con strings)
+
+Una tabla de rutas es una lista de `Entry` y esto facilita el hecho de crear el texto de la nueva tabla de ruta (es solo usar un formato)
+
 ## Tests
+
 ### Pa ejecutar
+
 Aqui esta el caso de los 7 routers!
 
 ```bash

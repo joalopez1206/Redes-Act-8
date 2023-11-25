@@ -110,7 +110,7 @@ if __name__ == "__main__":
     while True:
         router_sock.settimeout(None)
         msg, addr = router_sock.recvfrom(1024)
-        print(msg)
+        #print(msg)
         recv_packet = parse_packet(msg)
         recv_address = get_address(recv_packet)
         if recv_packet.ttl<=0:
