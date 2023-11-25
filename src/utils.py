@@ -22,6 +22,10 @@ class Entry:
     puerto_llegada: int
     mtu: int
 
+    def __repr__(self) -> str:
+        caminos = [str(x) for x in self.caminos]
+        return f"{self.ip_net} {' '.join(caminos)} {self.ip_llegada} {self.puerto_llegada} {self.mtu}"
+
 #Lo que guarda el cache es
 # key: la
 cache = dict()
@@ -64,7 +68,7 @@ def create_packet(packet: Packet):
     return b";".join(l)
 
 
-def check_routes(routes_file_name: str, dest_addr: tuple[str,int], is_default_router=False) -> tuple[str,int,int] | None :
+def check_routes(routes_file_name: str, dest_addr: tuple[str,int]) -> tuple[str,int,int] | None :
     global cache
     dest_ip, dest_port = dest_addr
     #si la direccion de cache no esta en el destino
@@ -88,7 +92,6 @@ def check_routes(routes_file_name: str, dest_addr: tuple[str,int], is_default_ro
 
         # Si es posible llegar a ellos
         if len(lines_filtered) != 0:
-            #print(cache)
 
             #vemos que para llegar, tomo la llave, obtengo la linea donde estoy actualmente y obtengo la ip 
             # y el puerto para llegar
@@ -105,6 +108,18 @@ def check_routes(routes_file_name: str, dest_addr: tuple[str,int], is_default_ro
         # si no, soy el default y no encontre nada y por lo tanto tiro none
         return None
  
+ # Notemos que en bgp no tiene sentido usar round robin (solo hay un solo camino siempre)
+ # por lo tanto, basta con encontrar el valor y retornarlo (si no esta es None!)
+def check_routes_bgp(routes_file_name: str, dest_addr: tuple[str,int]) -> tuple[str,int,int] | None:
+    dest_ip, destiny_port = dest_addr
+    with open(routes_file_name, "r") as f:
+        lines = f.readlines()
+        for line in lines:
+            ip, dest_port, *middle_ports, origen_port, ip_next_hop, port_next_hop, mtu =line.split(" ")
+            if int(dest_port) == destiny_port:
+                return ip_next_hop, int(port_next_hop), int(mtu)
+        return None
+
 def fragment_IP_packet(IP_packet: bytes, MTU: int) -> list[bytes]:
     l = len(IP_packet)
 
@@ -125,9 +140,10 @@ def fragment_IP_packet(IP_packet: bytes, MTU: int) -> list[bytes]:
 def reassemble_IP_packet(fragment_list: list[bytes]) -> bytes:
     if len(fragment_list) == 1:
         fragment = parse_packet(fragment_list[0])
-        if fragment.flag == 1:
+        if is_complete(fragment):
             return fragment_list[0]
         else: return None
+    
     fragment_parsed_list = [parse_packet(fragment) for fragment in fragment_list]
     fragment_parsed_list = sorted(fragment_parsed_list, key=lambda x: x.offset)
     for i in range(len(fragment_parsed_list)-1):
@@ -142,6 +158,9 @@ def reassemble_IP_packet(fragment_list: list[bytes]) -> bytes:
                                 fragment.ttl, fragment.iden, fragment.offset,
                                 size, last_fragment.flag, msg)
 
+def table_to_text(table: list[Entry]) -> str:
+    table_text = [str(entry) for entry in table]
+    return '\n'.join(table_text)
 
 def create_BGP_message(asn: int, lista: list[Entry]):
     prelude = f"BGP_ROUTES\n{asn}\n"
@@ -149,7 +168,7 @@ def create_BGP_message(asn: int, lista: list[Entry]):
     epilogue = "\nEND_BGP_ROUTES"
     return prelude + middle + epilogue
 
-def get_table(table_file: str):
+def get_table(table_file: str) -> list[Entry]:
     table = []
     with open(table_file, "r") as f:
         lines = f.readlines()
@@ -158,7 +177,34 @@ def get_table(table_file: str):
             camino = [int(c) for c in camino]
             puerto_llegada = int(puerto_llegada)
             mtu = int(mtu)
-            camino.reverse()
+            #camino.reverse()
             table.append(Entry(ip,camino,ip_llegada, puerto_llegada, mtu))
         return table
-            
+
+def get_list_of_asn_routes(s: str) -> list[list[int]]:
+    sin_inicio_fin = s.split("\n")
+    tabla = sin_inicio_fin[2:-1]
+    tabla_2 = [camino.split(" ") for camino in tabla]
+    tabla_final = [[int(x) for x in camino ] for camino in tabla_2]
+    return tabla_final
+
+def get_asn(s: str) -> int:
+    return int(s.split("\n")[1])
+
+def get_route(asn: int, table: list[Entry]) -> tuple[int, Entry]:
+    for i, entry in enumerate(table):
+        if asn == entry.caminos[0]:
+            return i, entry
+    return None
+
+def asn_in_any_route(asn, table):
+    for camino in table:
+        if asn in camino:
+            return True
+    return False
+
+def unknown_asn(asn: int, table: list[Entry]):
+    return all([(asn not in entry.caminos) for entry in table])
+
+def get_vecinos_initial(table: list[Entry]) -> list[int]:
+    return [entry.caminos[0] for entry in table]
